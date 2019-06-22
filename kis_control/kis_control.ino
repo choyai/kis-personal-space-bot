@@ -170,7 +170,7 @@ void loop() {
       timing = true;
     }
     else if (data == '2') {
-      cubic1(-100, 0, 0, TIMESTEP);
+      cubic1(-100, v_d1, 0, TIMESTEP);
 //      v_d1 = -100;
       starttime = millis();
       timing = true;
