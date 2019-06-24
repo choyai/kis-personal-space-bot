@@ -148,7 +148,7 @@ void SM_RxD(int c)
       SM_id++;
     } else if (SM_id > 2) {
       array[SM_id] = c;
-      if (SM_id >= 10) {
+      if (SM_id >= 9) {
         getPackage = 1;
         SM_id = 0;
       } else {
@@ -162,7 +162,7 @@ int sumCheck()
 {
   char sum = 0;
   char checksum = array[10];
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 9; i++) {
     sum = sum + (char)array[i];
   }
   sum = (char)sum;
@@ -176,14 +176,14 @@ int sumCheck()
 int mergeInts(int MSB, int LSB)
 {
   long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
-  printf("merged %d and %d into: %d \n", MSB, LSB, a);
+//  printf("merged %d and %d into: %d \n", MSB, LSB, a);
   return a;
 }
 
 float intsToFloat(unsigned char LSB, unsigned char hexadec)
 {
   float flo = (float)LSB + ((float)hexadec) / 256;
-  printf("merged %d and %d into: %0.2f\n", LSB, hexadec, flo);
+//  printf("merged %d and %d into: %0.2f\n", LSB, hexadec, flo);
   return flo;
 }
 
@@ -198,9 +198,6 @@ void setup() {
   TCCR2B = TCCR2B & 0xf8 | 0x01; // Pin3,Pin11 PWM 31250Hz
 
   //  SONAR::init(13);
-  //  wheel1.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
-  //  wheel2.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
-  //  wheel3.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
   Omni.PIDEnable(0.26, 0.02, 0, 10);
 
   Serial.begin(115200);
@@ -222,6 +219,7 @@ void loop() {
       getPackage = 0;
     }
     else {
+      Serial.println("received");
       switch (array[2]) {
         case 0:
           Omni.setMotorAllStop();
@@ -233,7 +231,7 @@ void loop() {
         case 1:
           
           for (int i = 1; i < 3; i++) {
-            q[i - 1] = intsToFloat(array[3 * i + 1], array[ 3 * i + 2]);
+            q[i - 1] = mergeInts(array[3 * i + 1], array[ 3 * i + 2]);
             if (array[3 * i]) {
               q[i - 1] = 0 - q[i - 1];
             }
