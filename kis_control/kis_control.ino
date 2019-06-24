@@ -69,7 +69,8 @@ void sonarsUpdate() {
 
 /*********************************************/
 //Delay
-
+String inputString = ""; // a string to hold incoming data
+boolean stringComplete = false; // whether the string is complete
 unsigned long starttime = 0;
 bool timing = false;
 float t_k;
@@ -154,37 +155,39 @@ void setup() {
   Omni.PIDEnable(0.26, 0.02, 0, 10);
 
   Serial.begin(115200);
+  // reserve 200 bytes for the inputString:
+  inputString.reserve(200);
 }
 
 /****************************************/
 // loop()
 void loop() {
 
-  if (Serial.available() > 0) {
-
-    data = Serial.read();
-    if (data == '0') {
-      Omni.setCarRight(100);
-      starttime = millis();
-      timing = true;
-    }
-    else if (data == '1') {
-      //forward 10 cm
-      cubic1(0, v_d1, 0, TIMESTEP);
-      cubic2(100, v_d2, 0, TIMESTEP);
-      //      v_d1 = 100;
-      starttime = millis();
-      timing = true;
-    }
-    else if (data == '2') {
-      //backwards 10 cm
-      cubic1(0, v_d1, 0, TIMESTEP);
-      cubic2(-100, v_d2, 0, TIMESTEP);
-      //      v_d1 = -100;
-      starttime = millis();
-      timing = true;
-    }
-  }
+  //  if (Serial.available() > 0) {
+  //
+  //    data = Serial.read();
+  //    if (data == '0') {
+  //      Omni.setCarRight(100);
+  //      starttime = millis();
+  //      timing = true;
+  //    }
+  //    else if (data == '1') {
+  //      //forward 10 cm
+  //      cubic1(0, v_d1, 0, TIMESTEP);
+  //      cubic2(100, v_d2, 0, TIMESTEP);
+  //      //      v_d1 = 100;
+  //      starttime = millis();
+  //      timing = true;
+  //    }
+  //    else if (data == '2') {
+  //      //backwards 10 cm
+  //      cubic1(0, v_d1, 0, TIMESTEP);
+  //      cubic2(-100, v_d2, 0, TIMESTEP);
+  //      //      v_d1 = -100;
+  //      starttime = millis();
+  //      timing = true;
+  //    }
+  //  }
   if (millis() - starttime >= TIMESTEP && timing) {
     Omni.setMotorAllStop();
     v_d1 = 0.0f;
@@ -232,5 +235,19 @@ void loop() {
     //    Serial.println(u3, DEC);
     Omni.PIDRegulate();
     //    delay(10);
+  }
+}
+
+void serialEvent() {
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    inputString += inChar;
+    // if the incoming character is a newline, set a flag
+    // so the main loop can do something about it:
+    if (inChar == '\n') {
+      stringComplete = true;
+    }
   }
 }
