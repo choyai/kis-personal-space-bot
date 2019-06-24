@@ -78,8 +78,11 @@ float c0_1, c0_2, c1_1, c1_2, c2_1, c2_2, c3_1, c3_2;
 float *c01 = &c0_1, *c02 = &c0_2, *c11 = &c1_1, *c12 = &c1_2;
 float *c21 = &c2_1, *c22 = &c2_2, *c31 = &c3_1, *c32 = &c3_2;
 float q1 = 0.0f;
+float q2 = 0.0f;
 float target_1 = 0.0f, target_2 = 0.0f;
 float v_d1 = 0.0f;
+float v_d2 = 0.0f;
+float u1 = 0.0f, u2 = 0.0f, u3 = 0.0f;
 
 /*******************************************/
 //cubic trajectory generation
@@ -94,13 +97,18 @@ void cubic(float q_i, float q_f, float v_i, float v_f, float tkk, float *t_kk, f
   *t_kk = tkk;
 }
 
-//1D cubic trajectory(for forwards+backwards)
+//x cubic trajectory
 void cubic1(float tar_q, float in_v, float tar_v, float tkkk)
 {
   cubic(q1, tar_q, in_v, tar_v, tkkk, tk, c01, c11, c21, c31);
   target_1 = tar_q;
 }
-
+//y cubic trajectory
+void cubic2(float tar_q, float in_v, float tar_v, float tkkk)
+{
+  cubic(q2, tar_q, in_v, tar_v, tkkk, tk, c02, c12, c22, c32);
+  target_2 = tar_q;
+}
 /*******************************************/
 // Motors
 
@@ -139,12 +147,13 @@ void setup() {
   TCCR1B = TCCR1B & 0xf8 | 0x01; // Pin9,Pin10 PWM 31250Hz
   TCCR2B = TCCR2B & 0xf8 | 0x01; // Pin3,Pin11 PWM 31250Hz
 
-//  SONAR::init(13);
-
+  //  SONAR::init(13);
+  //  wheel1.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
+  //  wheel2.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
+  //  wheel3.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
   Omni.PIDEnable(0.26, 0.02, 0, 10);
 
   Serial.begin(115200);
-//  Omni.setCarBackoff(0);
 }
 
 /****************************************/
@@ -152,26 +161,26 @@ void setup() {
 void loop() {
 
   if (Serial.available() > 0) {
-//    Omni.setCarBackoff(0);
-//    Omni.delayMS(300, true);
-//    Omni.setCarSlow2Stop(100);
+
     data = Serial.read();
     if (data == '0') {
-      //do anything
       Omni.setCarRight(100);
       starttime = millis();
       timing = true;
     }
     else if (data == '1') {
-      //do anything
-      cubic1(100, v_d1, 0, TIMESTEP);
-//      v_d1 = 100;
+      //forward 10 cm
+      cubic1(0, v_d1, 0, TIMESTEP);
+      cubic2(100, v_d2, 0, TIMESTEP);
+      //      v_d1 = 100;
       starttime = millis();
       timing = true;
     }
     else if (data == '2') {
-      cubic1(-100, v_d1, 0, TIMESTEP);
-//      v_d1 = -100;
+      //backwards 10 cm
+      cubic1(0, v_d1, 0, TIMESTEP);
+      cubic2(-100, v_d2, 0, TIMESTEP);
+      //      v_d1 = -100;
       starttime = millis();
       timing = true;
     }
@@ -179,28 +188,49 @@ void loop() {
   if (millis() - starttime >= TIMESTEP && timing) {
     Omni.setMotorAllStop();
     v_d1 = 0.0f;
+    v_d2 = 0.0f;
     timing = false;
   }
   else if (timing) {
     float tau = (millis() - starttime) / (float)TIMESTEP;
     v_d1 = c1_1 + 2.0f * c2_1 * tau + 3.0f * c3_1 * tau * tau;
-    
-
-    if (v_d1 > 0) {
-      Omni.setCarAdvance((int)v_d1);
-//      Omni.setCarRight((int)v_d1);
-//      Serial.println(v_d1);
+    v_d2 = c1_2 + 2.0f * c2_2 * tau + 3.0f * c3_2 * tau * tau;
+    u1 = v_d1;
+    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
+    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
+    if (u1 > 0) {
+      Omni.wheelBackSetSpeedMMPS((int)u1, DIR_ADVANCE);
     }
-    else if (v_d1 < 0) {
-      Omni.setCarBackoff((int)(0 - v_d1));
-//      Serial.println(v_d1);
+    else if (u1 < 0) {
+      Omni.wheelBackSetSpeedMMPS((int)(0 - u1), DIR_BACKOFF);
     }
-//    else if (v_d1 == 0) {
-//      Omni.setMotorAllStop();
-//      timing = false;
-//    }
+    if (u2 > 0) {
+      Omni.wheelLeftSetSpeedMMPS((int)u2, DIR_ADVANCE);
+    }
+    else if (u2 < 0) {
+      Omni.wheelLeftSetSpeedMMPS((int)(0 - u2), DIR_BACKOFF);
+    }
+    if (u3 > 0) {
+      Omni.wheelRightSetSpeedMMPS((int)u3, DIR_ADVANCE);
+    }
+    else if (u3 < 0) {
+      Omni.wheelRightSetSpeedMMPS((int)(0 - u3), DIR_BACKOFF);
+    }
+    //    if (v_d1 > 0) {
+    //      Omni.setCarAdvance((int)v_d1);
+    //      //      Serial.println(v_d1);
+    //    }
+    //    else if (v_d1 < 0) {
+    //      Omni.setCarBackoff((int)(0 - v_d1));
+    //      //      Serial.println(v_d1);
+    //    }
+    //    Serial.print("u1 = ");
+    //    Serial.print(u1, DEC);
+    //    Serial.print(", u2 = ");
+    //    Serial.print(u2, DEC);
+    //    Serial.print(", u3 = ");
+    //    Serial.println(u3, DEC);
     Omni.PIDRegulate();
-//    delay(10);
+    //    delay(10);
   }
-//      Serial.println(v_d1);
 }
