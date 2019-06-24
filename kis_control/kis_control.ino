@@ -70,6 +70,10 @@ void sonarsUpdate() {
 /*********************************************/
 //Delay
 
+char array[20];
+char SM_id = 0;
+int getPackage = 0;
+char command_ID;
 unsigned long starttime = 0;
 bool timing = false;
 float t_k;
@@ -83,7 +87,7 @@ float target_1 = 0.0f, target_2 = 0.0f;
 float v_d1 = 0.0f;
 float v_d2 = 0.0f;
 float u1 = 0.0f, u2 = 0.0f, u3 = 0.0f;
-
+float q[10];
 /*******************************************/
 //cubic trajectory generation
 
@@ -125,19 +129,65 @@ Omni3WD Omni(&wheel1, &wheel2, &wheel3);
 /******************************************/
 
 /******************************************/
-// demo
-unsigned long currMillis = 0;
-void demoWithSensors(unsigned int speedMMPS, unsigned int distance) {
-  if (millis() - currMillis > SONAR::duration) {
-    currMillis = millis();
-    sonarsUpdate();
+//Communication
+
+// store data from pc
+void SM_RxD(int c)
+{
+  if (getPackage == 0) {
+    if (SM_id < 2) {
+      if (c == 255) {
+        array[SM_id] = c;
+        SM_id++;
+      } else {
+        SM_id = 0;
+      }
+    } else if (SM_id == 2) {
+      array[SM_id] = c;
+      command_ID = c;
+      SM_id++;
+    } else if (SM_id > 2) {
+      array[SM_id] = c;
+      if (SM_id >= 10) {
+        getPackage = 1;
+        SM_id = 0;
+      } else {
+        SM_id++;
+      }
+    }
   }
-
-  if (distBuf[1] < distance) Omni.setCarSlow2Stop(500);
-  else if (distBuf[2] < distance) Omni.setCarSlow2Stop(500);
-  else if (distBuf[0] < distance) Omni.setCarSlow2Stop(500);
-
 }
+// performs checksum
+int sumCheck()
+{
+  char sum = 0;
+  char checksum = array[10];
+  for (int i = 0; i < 10; i++) {
+    sum = sum + (char)array[i];
+  }
+  sum = (char)sum;
+  if (sum == checksum) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int mergeInts(int MSB, int LSB)
+{
+  long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
+  printf("merged %d and %d into: %d \n", MSB, LSB, a);
+  return a;
+}
+
+float intsToFloat(unsigned char LSB, unsigned char hexadec)
+{
+  float flo = (float)LSB + ((float)hexadec) / 256;
+  printf("merged %d and %d into: %0.2f\n", LSB, hexadec, flo);
+  return flo;
+}
+
+
 
 
 char data;
@@ -163,26 +213,36 @@ void loop() {
   if (Serial.available() > 0) {
 
     data = Serial.read();
-    if (data == '0') {
-      Omni.setCarRight(100);
-      starttime = millis();
-      timing = true;
+    SM_RxD(data);
+  }
+  if (getPackage) {
+    int received = sumCheck();
+    if (!received) {
+      Serial.println("res");
+      getPackage = 0;
     }
-    else if (data == '1') {
-      //forward 10 cm
-      cubic1(0, v_d1, 0, TIMESTEP);
-      cubic2(100, v_d2, 0, TIMESTEP);
-      //      v_d1 = 100;
-      starttime = millis();
-      timing = true;
-    }
-    else if (data == '2') {
-      //backwards 10 cm
-      cubic1(0, v_d1, 0, TIMESTEP);
-      cubic2(-100, v_d2, 0, TIMESTEP);
-      //      v_d1 = -100;
-      starttime = millis();
-      timing = true;
+    else {
+      switch (array[2]) {
+        case 0:
+          Omni.setMotorAllStop();
+          v_d1 = 0.0f;
+          v_d2 = 0.0f;
+          timing = false;
+          getPackage = 0;
+          break;
+        case 1:
+          
+          for (int i = 1; i < 3; i++) {
+            q[i - 1] = intsToFloat(array[3 * i + 1], array[ 3 * i + 2]);
+            if (array[3 * i]) {
+              q[i - 1] = 0 - q[i - 1];
+            }
+          }
+          cubic1(q[0], v_d1, 0, TIMESTEP);
+          cubic2(q[1], v_d2, 0, TIMESTEP);
+          starttime = millis();
+          timing = true;
+      }
     }
   }
   if (millis() - starttime >= TIMESTEP && timing) {
