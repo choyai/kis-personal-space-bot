@@ -293,9 +293,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   portNames:
-  - COM21
   - COM22
-  - COM23
   speed: 115200
   logDebugInfos: 1
 --- !u!4 &670608619

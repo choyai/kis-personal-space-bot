@@ -262,7 +262,7 @@ void loop() {
     //    delay(10);
   }
 }
-char prevChar = '0';
+//char prevChar = '0';
 void serialEvent() {
   while (Serial.available()) {
     // get the new byte:
@@ -271,9 +271,9 @@ void serialEvent() {
     inputString += inChar;
     // if the incoming character is a newline, set a flag
     // so the main loop can do something about it:
-    if (inputString.length() == 12 && inChar == '\n' && prevChar == '\r') {
+    if (inputString.length() == 11 && inChar == '\n') {
       stringComplete = true;
     }
-    prevChar = inChar;
+//    prevChar = inChar;
   }
 }

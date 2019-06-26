@@ -24,7 +24,7 @@ void OnGUI(){
         }
 }
 void SendSerialCommand(int id, int x, int y){
-        char[] BufferArr = new char[12];
+        char[] BufferArr = new char[10];
         BufferArr[0] = (char)255;
         BufferArr[1] = (char)255;
         BufferArr[2] = (char)id;
@@ -53,10 +53,10 @@ void SendSerialCommand(int id, int x, int y){
                 sum = sum + BufferArr[i];
         }
         BufferArr[9] = (char)sum;
-        BufferArr[10] = '\r';
-        BufferArr[11] = '\n';
+        // BufferArr[10] = '\r';
+        // BufferArr[11] = '\n';
         string sendString = new string(BufferArr);
-        Serial.Write(sendString);
+        Serial.WriteLn(sendString);
 }
 int[] SplitLargeInt(int Value){
         int msB = (Value/256) % 256;
