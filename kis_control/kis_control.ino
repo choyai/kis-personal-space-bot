@@ -26,9 +26,8 @@
               M1
 */
 
-
-#include <fuzzy_table.h>
 #include <PID_Beta6.h>
+#include <fuzzy_table.h>
 
 #include <PinChangeInt.h>
 #include <PinChangeIntConfig.h>
@@ -46,8 +45,10 @@ SONAR sonar11(0x11), sonar12(0x12), sonar13(0x13);
 unsigned short distBuf[3];
 void sonarsUpdate() {
   static unsigned char sonarCurr = 1;
-  if (sonarCurr == 3) sonarCurr = 1;
-  else ++sonarCurr;
+  if (sonarCurr == 3)
+    sonarCurr = 1;
+  else
+    ++sonarCurr;
   if (sonarCurr == 1) {
     distBuf[1] = sonar12.getDist();
     sonar12.trigger();
@@ -64,8 +65,8 @@ void sonarsUpdate() {
 }
 
 /*********************************************/
-//Delay
-String inputString = ""; // a string to hold incoming data
+// Delay
+String inputString = "";        // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 unsigned long starttime = 0;
 bool timing = false;
@@ -80,13 +81,13 @@ float target_1 = 0.0f, target_2 = 0.0f;
 float v_d1 = 0.0f;
 float v_d2 = 0.0f;
 float u1 = 0.0f, u2 = 0.0f, u3 = 0.0f;
-
+float q[10];
 /*******************************************/
-//cubic trajectory generation
+// cubic trajectory generation
 
-//general cubic trajectory generation
-void cubic(float q_i, float q_f, float v_i, float v_f, float tkk, float *t_kk, float *c_0, float *c_1, float *c_2, float *c_3)
-{
+// general cubic trajectory generation
+void cubic(float q_i, float q_f, float v_i, float v_f, float tkk, float *t_kk,
+           float *c_0, float *c_1, float *c_2, float *c_3) {
   *c_0 = q_i;
   *c_1 = v_i;
   *c_2 = 3.0f * q_f - 3.0f * q_i - v_f - 2.0f * v_i;
@@ -94,15 +95,13 @@ void cubic(float q_i, float q_f, float v_i, float v_f, float tkk, float *t_kk, f
   *t_kk = tkk;
 }
 
-//x cubic trajectory
-void cubic1(float tar_q, float in_v, float tar_v, float tkkk)
-{
+// x cubic trajectory
+void cubic1(float tar_q, float in_v, float tar_v, float tkkk) {
   cubic(q1, tar_q, in_v, tar_v, tkkk, tk, c01, c11, c21, c31);
   target_1 = tar_q;
 }
-//y cubic trajectory
-void cubic2(float tar_q, float in_v, float tar_v, float tkkk)
-{
+// y cubic trajectory
+void cubic2(float tar_q, float in_v, float tar_v, float tkkk) {
   cubic(q2, tar_q, in_v, tar_v, tkkk, tk, c02, c12, c22, c32);
   target_2 = tar_q;
 }
@@ -110,36 +109,79 @@ void cubic2(float tar_q, float in_v, float tar_v, float tkkk)
 // Motors
 
 irqISR(irq1, isr1);
-MotorWheel wheel1(9, 8, 6, 7, &irq1);    // Pin9:PWM, Pin8:DIR, Pin6:PhaseA, Pin7:PhaseB
+MotorWheel wheel1(9, 8, 6, 7,
+                  &irq1); // Pin9:PWM, Pin8:DIR, Pin6:PhaseA, Pin7:PhaseB
 
 irqISR(irq2, isr2);
-MotorWheel wheel2(10, 11, 14, 15, &irq2); // Pin10:PWM, Pin11:DIR, Pin14:PhaseA, Pin15:PhaseB
+MotorWheel wheel2(10, 11, 14, 15,
+                  &irq2); // Pin10:PWM, Pin11:DIR, Pin14:PhaseA, Pin15:PhaseB
 
 irqISR(irq3, isr3);
-MotorWheel wheel3(3, 2, 4, 5, &irq3);    // Pin3:PWM, Pin2:DIR, Pin4:PhaseA, Pin5:PhaseB
+MotorWheel wheel3(3, 2, 4, 5,
+                  &irq3); // Pin3:PWM, Pin2:DIR, Pin4:PhaseA, Pin5:PhaseB
 
 Omni3WD Omni(&wheel1, &wheel2, &wheel3);
 /******************************************/
 
 /******************************************/
-// demo
-unsigned long currMillis = 0;
-void demoWithSensors(unsigned int speedMMPS, unsigned int distance) {
-  if (millis() - currMillis > SONAR::duration) {
-    currMillis = millis();
-    sonarsUpdate();
+// Communication
+
+// store data from pc
+void SM_RxD(int c) {
+  if (getPackage == 0) {
+    if (SM_id < 2) {
+      if (c == 255) {
+        array[SM_id] = c;
+        SM_id++;
+      } else {
+        SM_id = 0;
+      }
+    } else if (SM_id == 2) {
+      array[SM_id] = c;
+      command_ID = c;
+      SM_id++;
+    } else if (SM_id > 2) {
+      array[SM_id] = c;
+      if (SM_id >= 9) {
+        getPackage = 1;
+        SM_id = 0;
+      } else {
+        SM_id++;
+      }
+    }
   }
+}
+// performs checksum
+int sumCheck() {
+  char sum = 0;
+  char checksum = array[10];
+  for (int i = 0; i < 9; i++) {
+    sum = sum + (char)array[i];
+  }
+  sum = (char)sum;
+  if (sum == checksum) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
 
-  if (distBuf[1] < distance) Omni.setCarSlow2Stop(500);
-  else if (distBuf[2] < distance) Omni.setCarSlow2Stop(500);
-  else if (distBuf[0] < distance) Omni.setCarSlow2Stop(500);
+int mergeInts(int MSB, int LSB) {
+  long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
+  //  printf("merged %d and %d into: %d \n", MSB, LSB, a);
+  return a;
+}
 
+float intsToFloat(unsigned char LSB, unsigned char hexadec) {
+  float flo = (float)LSB + ((float)hexadec) / 256;
+  //  printf("merged %d and %d into: %0.2f\n", LSB, hexadec, flo);
+  return flo;
 }
 
 /******************************************/
-//serial communication protocol
+// serial communication protocol
 char data;
-//checksum function
+// checksum function
 bool checkSum() {
   char sum = 0;
   char check = inputString[9];
@@ -149,9 +191,8 @@ bool checkSum() {
   return sum == check;
 }
 
-//merge ints from msb and lsb from incoming data
-int mergeInts(int MSB, int LSB)
-{
+// merge ints from msb and lsb from incoming data
+int mergeInts(int MSB, int LSB) {
   long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
   Serial.println(a);
   return a;
@@ -164,9 +205,6 @@ void setup() {
   TCCR2B = TCCR2B & 0xf8 | 0x01; // Pin3,Pin11 PWM 31250Hz
 
   //  SONAR::init(13);
-  //  wheel1.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
-  //  wheel2.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
-  //  wheel3.PIDEnable(0.26, 0.02, 0, 10); // used whewl1 to call the PIDEnable
   Omni.PIDEnable(0.26, 0.02, 0, 10);
 
   Serial.begin(115200);
@@ -178,30 +216,29 @@ void setup() {
 // loop()
 void loop() {
   if (stringComplete) {
-    //perform checksum
+    // perform checksum
     bool checksum = checkSum();
     if (checksum) {
       Serial.println("received");
       switch (inputString[2]) {
-        case 0:
-          Omni.setMotorAllStop();
-          break;
-        case 1:
-          float x = mergeInts((int)inputString[4], (int)inputString[5]);
-          float y = mergeInts((int)inputString[7], (int)inputString[8]);
-          if (inputString[3]) {
-            x = 0 - x;
-          }
-          if (inputString[6]) {
-            y = 0 - y;
-          }
-          cubic1(x, v_d1, 0, TIMESTEP);
-          cubic2(y, v_d2, 0, TIMESTEP);
-          starttime = millis();
-          timing = true;
+      case 0:
+        Omni.setMotorAllStop();
+        break;
+      case 1:
+        float x = mergeInts((int)inputString[4], (int)inputString[5]);
+        float y = mergeInts((int)inputString[7], (int)inputString[8]);
+        if (inputString[3]) {
+          x = 0 - x;
+        }
+        if (inputString[6]) {
+          y = 0 - y;
+        }
+        cubic1(x, v_d1, 0, TIMESTEP);
+        cubic2(y, v_d2, 0, TIMESTEP);
+        starttime = millis();
+        timing = true;
       }
-    }
-    else {
+    } else {
       Serial.println("resend");
     }
     //    Serial.println(inputString);
@@ -214,8 +251,7 @@ void loop() {
     v_d1 = 0.0f;
     v_d2 = 0.0f;
     timing = false;
-  }
-  else if (timing) {
+  } else if (timing) {
     float tau = (millis() - starttime) / (float)TIMESTEP;
     v_d1 = c1_1 + 2.0f * c2_1 * tau + 3.0f * c3_1 * tau * tau;
     v_d2 = c1_2 + 2.0f * c2_2 * tau + 3.0f * c3_2 * tau * tau;
@@ -224,20 +260,17 @@ void loop() {
     u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
     if (u1 > 0) {
       Omni.wheelBackSetSpeedMMPS((int)u1, DIR_ADVANCE);
-    }
-    else if (u1 < 0) {
+    } else if (u1 < 0) {
       Omni.wheelBackSetSpeedMMPS((int)(0 - u1), DIR_BACKOFF);
     }
     if (u2 > 0) {
       Omni.wheelLeftSetSpeedMMPS((int)u2, DIR_ADVANCE);
-    }
-    else if (u2 < 0) {
+    } else if (u2 < 0) {
       Omni.wheelLeftSetSpeedMMPS((int)(0 - u2), DIR_BACKOFF);
     }
     if (u3 > 0) {
       Omni.wheelRightSetSpeedMMPS((int)u3, DIR_ADVANCE);
-    }
-    else if (u3 < 0) {
+    } else if (u3 < 0) {
       Omni.wheelRightSetSpeedMMPS((int)(0 - u3), DIR_BACKOFF);
     }
     //    if (v_d1 > 0) {
@@ -258,7 +291,7 @@ void loop() {
     //    delay(10);
   }
 }
-//char prevChar = '0';
+// char prevChar = '0';
 void serialEvent() {
   while (Serial.available()) {
     // get the new byte:
@@ -270,6 +303,6 @@ void serialEvent() {
     if (inputString.length() == 11 && inChar == '\n') {
       stringComplete = true;
     }
-//    prevChar = inChar;
+    //    prevChar = inChar;
   }
 }
