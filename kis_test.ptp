@@ -39,3 +39,24 @@ back
 0
 5
 
+SEND
+3
+dfa
+33 34 35 35 36 36 37 73 64 64 0D 0A
+0
+5
+
+SEND
+4
+forward
+FF FF 01 00 00 00 00 00 64 63 0A
+0
+5
+
+SEND
+5
+backwards
+FF FF 01 00 00 00 01 00 64 64 0A
+0
+5
+

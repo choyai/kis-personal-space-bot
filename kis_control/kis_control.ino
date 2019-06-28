@@ -1,14 +1,11 @@
+
 #include <EEPROM.h>
 
 //#define _NAMIKI_MOTOR   //for Namiki 22CL-103501PG80:1
 /********************************************************************/
 /*
-
-
                 Power Switch
-
                 Sonar0x11
-
          -------------------------
         /                         \
              /               \
@@ -27,7 +24,6 @@
              \                     /
         --------------------------
               M1
-
 */
 
 
@@ -69,7 +65,8 @@ void sonarsUpdate() {
 
 /*********************************************/
 //Delay
-
+String inputString = ""; // a string to hold incoming data
+boolean stringComplete = false; // whether the string is complete
 unsigned long starttime = 0;
 bool timing = false;
 float t_k;
@@ -139,8 +136,27 @@ void demoWithSensors(unsigned int speedMMPS, unsigned int distance) {
 
 }
 
-
+/******************************************/
+//serial communication protocol
 char data;
+//checksum function
+bool checkSum() {
+  char sum = 0;
+  char check = inputString[9];
+  for (int i = 0; i < 9; i++) {
+    sum = sum + inputString[i];
+  }
+  return sum == check;
+}
+
+//merge ints from msb and lsb from incoming data
+int mergeInts(int MSB, int LSB)
+{
+  long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
+  Serial.println(a);
+  return a;
+}
+
 /*****************************************/
 // setup()
 void setup() {
@@ -154,36 +170,44 @@ void setup() {
   Omni.PIDEnable(0.26, 0.02, 0, 10);
 
   Serial.begin(115200);
+  // reserve 200 bytes for the inputString:
+  inputString.reserve(200);
 }
 
 /****************************************/
 // loop()
 void loop() {
-
-  if (Serial.available() > 0) {
-
-    data = Serial.read();
-    if (data == '0') {
-      Omni.setCarRight(100);
-      starttime = millis();
-      timing = true;
+  if (stringComplete) {
+    //perform checksum
+    bool checksum = checkSum();
+    if (checksum) {
+      Serial.println("received");
+      switch (inputString[2]) {
+        case 0:
+          Omni.setMotorAllStop();
+          break;
+        case 1:
+          float x = mergeInts((int)inputString[4], (int)inputString[5]);
+          float y = mergeInts((int)inputString[7], (int)inputString[8]);
+          if (inputString[3]) {
+            x = 0 - x;
+          }
+          if (inputString[6]) {
+            y = 0 - y;
+          }
+          cubic1(x, v_d1, 0, TIMESTEP);
+          cubic2(y, v_d2, 0, TIMESTEP);
+          starttime = millis();
+          timing = true;
+      }
     }
-    else if (data == '1') {
-      //forward 10 cm
-      cubic1(0, v_d1, 0, TIMESTEP);
-      cubic2(100, v_d2, 0, TIMESTEP);
-      //      v_d1 = 100;
-      starttime = millis();
-      timing = true;
+    else {
+      Serial.println("resend");
     }
-    else if (data == '2') {
-      //backwards 10 cm
-      cubic1(0, v_d1, 0, TIMESTEP);
-      cubic2(-100, v_d2, 0, TIMESTEP);
-      //      v_d1 = -100;
-      starttime = millis();
-      timing = true;
-    }
+    //    Serial.println(inputString);
+    // clear the string:
+    inputString = "";
+    stringComplete = false;
   }
   if (millis() - starttime >= TIMESTEP && timing) {
     Omni.setMotorAllStop();
@@ -232,5 +256,20 @@ void loop() {
     //    Serial.println(u3, DEC);
     Omni.PIDRegulate();
     //    delay(10);
+  }
+}
+//char prevChar = '0';
+void serialEvent() {
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    inputString += inChar;
+    // if the incoming character is a newline, set a flag
+    // so the main loop can do something about it:
+    if (inputString.length() == 11 && inChar == '\n') {
+      stringComplete = true;
+    }
+//    prevChar = inChar;
   }
 }
