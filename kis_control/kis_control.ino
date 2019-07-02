@@ -36,7 +36,7 @@
 #include <Omni3WD.h>
 
 #include <SONAR.h>
-#define TIMESTEP 3000
+#define TIMESTEP 1000
 /******************************************/
 // SONAR
 
@@ -72,16 +72,19 @@ unsigned long starttime = 0;
 bool timing = false;
 float t_k;
 float *tk = &t_k;
-float c0_1, c0_2, c1_1, c1_2, c2_1, c2_2, c3_1, c3_2;
-float *c01 = &c0_1, *c02 = &c0_2, *c11 = &c1_1, *c12 = &c1_2;
-float *c21 = &c2_1, *c22 = &c2_2, *c31 = &c3_1, *c32 = &c3_2;
-float q1 = 0.0f;
-float q2 = 0.0f;
-float target_1 = 0.0f, target_2 = 0.0f;
-float v_d1 = 0.0f;
-float v_d2 = 0.0f;
+float c0_1, c0_2, c0_3, c1_1, c1_2, c1_3, c2_1, c2_2, c2_3, c3_1, c3_2, c3_3;
+float *c01 = &c0_1, *c02 = &c0_2, *c03 = &c0_3, *c11 = &c1_1, *c12 = &c1_2, *c13 = &c1_3;
+float *c21 = &c2_1, *c22 = &c2_2, *c23 = &c2_3, *c31 = &c3_1, *c32 = &c3_2, *c33 = &c3_3;
+float q1 = 0.0f;//x
+float q2 = 0.0f;//y
+float q3 = 0.0f;//theta
+float target_1 = 0.0f, target_2 = 0.0f, target_3 = 0.0f;
+float v_d1 = 0.0f;//v_x
+float v_d2 = 0.0f;//v_y
+float v_d3 = 0.0f;//omega
 float u1 = 0.0f, u2 = 0.0f, u3 = 0.0f;
 float q[10];
+float d = 25 + 150 * cos(PI / 6);
 /*******************************************/
 // cubic trajectory generation
 
@@ -105,6 +108,12 @@ void cubic2(float tar_q, float in_v, float tar_v, float tkkk) {
   cubic(q2, tar_q, in_v, tar_v, tkkk, tk, c02, c12, c22, c32);
   target_2 = tar_q;
 }
+// theta cubic trajectory
+void cubic3(float tar_q, float in_v, float tar_v, float tkkk) {
+  cubic(q3, tar_q, in_v, tar_v, tkkk, tk, c03, c13, c23, c33);
+  target_3 = tar_q;
+}
+
 /*******************************************/
 // Motors
 
@@ -123,60 +132,6 @@ MotorWheel wheel3(3, 2, 4, 5,
 Omni3WD Omni(&wheel1, &wheel2, &wheel3);
 /******************************************/
 
-/******************************************/
-// Communication
-
-// store data from pc
-void SM_RxD(int c) {
-  if (getPackage == 0) {
-    if (SM_id < 2) {
-      if (c == 255) {
-        array[SM_id] = c;
-        SM_id++;
-      } else {
-        SM_id = 0;
-      }
-    } else if (SM_id == 2) {
-      array[SM_id] = c;
-      command_ID = c;
-      SM_id++;
-    } else if (SM_id > 2) {
-      array[SM_id] = c;
-      if (SM_id >= 9) {
-        getPackage = 1;
-        SM_id = 0;
-      } else {
-        SM_id++;
-      }
-    }
-  }
-}
-// performs checksum
-int sumCheck() {
-  char sum = 0;
-  char checksum = array[10];
-  for (int i = 0; i < 9; i++) {
-    sum = sum + (char)array[i];
-  }
-  sum = (char)sum;
-  if (sum == checksum) {
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-int mergeInts(int MSB, int LSB) {
-  long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
-  //  printf("merged %d and %d into: %d \n", MSB, LSB, a);
-  return a;
-}
-
-float intsToFloat(unsigned char LSB, unsigned char hexadec) {
-  float flo = (float)LSB + ((float)hexadec) / 256;
-  //  printf("merged %d and %d into: %0.2f\n", LSB, hexadec, flo);
-  return flo;
-}
 
 /******************************************/
 // serial communication protocol
@@ -184,8 +139,8 @@ char data;
 // checksum function
 bool checkSum() {
   char sum = 0;
-  char check = inputString[9];
-  for (int i = 0; i < 9; i++) {
+  char check = inputString[12];
+  for (int i = 0; i < 12; i++) {
     sum = sum + inputString[i];
   }
   return sum == check;
@@ -221,22 +176,27 @@ void loop() {
     if (checksum) {
       Serial.println("received");
       switch (inputString[2]) {
-      case 0:
-        Omni.setMotorAllStop();
-        break;
-      case 1:
-        float x = mergeInts((int)inputString[4], (int)inputString[5]);
-        float y = mergeInts((int)inputString[7], (int)inputString[8]);
-        if (inputString[3]) {
-          x = 0 - x;
-        }
-        if (inputString[6]) {
-          y = 0 - y;
-        }
-        cubic1(x, v_d1, 0, TIMESTEP);
-        cubic2(y, v_d2, 0, TIMESTEP);
-        starttime = millis();
-        timing = true;
+        case 0:
+          Omni.setMotorAllStop();
+          break;
+        case 1:
+          float x = mergeInts((int)inputString[4], (int)inputString[5]);
+          float y = mergeInts((int)inputString[7], (int)inputString[8]);
+          float omega = mergeInts((int)inputString[10], (int)inputString[11]);
+          if (inputString[3]) {
+            x = 0 - x;
+          }
+          if (inputString[6]) {
+            y = 0 - y;
+          }
+          if (inputString[9]) {
+            omega = 0 - omega;
+          }
+          cubic1(x, v_d1, 0, TIMESTEP);
+          cubic2(y, v_d2, 0, TIMESTEP);
+          cubic3(omega, v_d3, 0, TIMESTEP);
+          starttime = millis();
+          timing = true;
       }
     } else {
       Serial.println("resend");
@@ -250,14 +210,19 @@ void loop() {
     Omni.setMotorAllStop();
     v_d1 = 0.0f;
     v_d2 = 0.0f;
+    v_d3 = 0.0f;
     timing = false;
   } else if (timing) {
     float tau = (millis() - starttime) / (float)TIMESTEP;
     v_d1 = c1_1 + 2.0f * c2_1 * tau + 3.0f * c3_1 * tau * tau;
     v_d2 = c1_2 + 2.0f * c2_2 * tau + 3.0f * c3_2 * tau * tau;
-    u1 = v_d1;
-    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
-    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
+    v_d3 = c1_3 + 2.0f * c2_3 * tau + 3.0f * c3_3 * tau * tau;
+    //    u1 = v_d1;
+    //    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
+    //    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
+    u1 = v_d1 - d * v_d3 * PI / 180.0f;
+    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3) - d * v_d3 * PI / 180.0f;
+    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3) - d * v_d3 * PI / 180.0f;
     if (u1 > 0) {
       Omni.wheelBackSetSpeedMMPS((int)u1, DIR_ADVANCE);
     } else if (u1 < 0) {
@@ -300,7 +265,7 @@ void serialEvent() {
     inputString += inChar;
     // if the incoming character is a newline, set a flag
     // so the main loop can do something about it:
-    if (inputString.length() == 11 && inChar == '\n') {
+    if (inputString.length() == 14 && inChar == '\n') {
       stringComplete = true;
     }
     //    prevChar = inChar;
