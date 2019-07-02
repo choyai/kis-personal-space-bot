@@ -289,7 +289,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   portName: COM22
   baudRate: 115200
-  messageListener: {fileID: 0}
+  messageListener: {fileID: 71148158}
   reconnectionDelay: 1000
   maxUnreadMessages: 10
   separator: 10

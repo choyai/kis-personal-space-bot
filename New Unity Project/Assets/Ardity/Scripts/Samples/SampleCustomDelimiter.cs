@@ -46,8 +46,10 @@ void Update()
         //         }
         //         serialController.SendSerialMessage(actualSent);
         // }
-
-
+        if(Input.GetKeyDown(KeyCode.Space)) {
+                Debug.Log("pressed space");
+                Send(1, 0, 100, 30);
+        }
         //---------------------------------------------------------------------
         // Receive data
         //---------------------------------------------------------------------
@@ -63,18 +65,18 @@ void Update()
         Debug.Log("Received some bytes, printing their ascii codes: " + sb);
 }
 
-public void Send(byte id, int x, int y){
-        byte[] BytesToSend = SendSerialCommand(id, x, y);
-        byte[] actualSent = new byte[11];
-        for(int i = 0; i<11; i++) {
+public void Send(byte id, int x, int y, int theta){
+        byte[] BytesToSend = SendSerialCommand(id, x, y, theta);
+        byte[] actualSent = new byte[14];
+        for(int i = 0; i<14; i++) {
                 actualSent[i] = BytesToSend[i];
         }
         serialController.SendSerialMessage(actualSent);
 }
 
-byte[] SendSerialCommand(byte id, int x, int y){
+byte[] SendSerialCommand(byte id, int x, int y, int theta){
 
-        byte[] BufferArr = new byte[11];
+        byte[] BufferArr = new byte[14];
         BufferArr[0] = 255;
         BufferArr[1] = 255;
         BufferArr[2] = id;
@@ -92,22 +94,34 @@ byte[] SendSerialCommand(byte id, int x, int y){
         else{
                 BufferArr[6] = 0;
         }
+        if(theta < 0) {
+                BufferArr[9] = 1;
+                theta = 0-theta;
+        }
+        else{
+                BufferArr[9]= 0;
+        }
         int[] splitx = SplitLargeInt(x);
         int[] splity = SplitLargeInt(y);
+        int[] splitw = SplitLargeInt(theta);
+
         BufferArr[4] = (byte)splitx[0];
         BufferArr[5] = (byte)splitx[1];
         BufferArr[7] = (byte)splity[0];
         BufferArr[8] = (byte)splity[1];
+        BufferArr[10] = (byte)splitw[0];
+        BufferArr[11] = (byte)splitw[1];
+
         int sum = 0;
-        for(int i = 0; i<9; i++) {
+        for(int i = 0; i<12; i++) {
                 sum = sum + BufferArr[i];
         }
-        BufferArr[9] = (byte)sum;
+        BufferArr[12] = (byte)sum;
         // Debug.Log("writing:");
         // foreach(byte b in BufferArr) {
         //         Debug.Log(b);
         // }
-        BufferArr[10] = 10;
+        BufferArr[13] = 10;
         // BufferArr[11] = '\n';
         // Debug.Log();
         return BufferArr;

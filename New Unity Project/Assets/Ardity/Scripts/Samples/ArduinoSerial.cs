@@ -68,7 +68,7 @@ void Update()
 public void Send(byte id, int x, int y, int theta){
         byte[] BytesToSend = SendSerialCommand(id, x, y, theta);
         byte[] actualSent = new byte[14];
-        for(int i = 0; i<13; i++) {
+        for(int i = 0; i<14; i++) {
                 actualSent[i] = BytesToSend[i];
         }
         serialController.SendSerialMessage(actualSent);
