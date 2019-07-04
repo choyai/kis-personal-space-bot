@@ -85,6 +85,7 @@ float v_d3 = 0.0f;//omega
 float u1 = 0.0f, u2 = 0.0f, u3 = 0.0f;
 float q[10];
 float d = 25 + 150 * cos(PI / 6);
+float x, y, omega;
 /*******************************************/
 // cubic trajectory generation
 
@@ -149,7 +150,7 @@ bool checkSum() {
 // merge ints from msb and lsb from incoming data
 int mergeInts(int MSB, int LSB) {
   long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
-  Serial.println(a);
+//  Serial.println(a);
   return a;
 }
 
@@ -174,15 +175,15 @@ void loop() {
     // perform checksum
     bool checksum = checkSum();
     if (checksum) {
-      Serial.println("received");
+//      Serial.println("received");
       switch (inputString[2]) {
         case 0:
           Omni.setMotorAllStop();
           break;
         case 1:
-          float x = mergeInts((int)inputString[4], (int)inputString[5]);
-          float y = mergeInts((int)inputString[7], (int)inputString[8]);
-          float omega = mergeInts((int)inputString[10], (int)inputString[11]);
+          x = mergeInts((int)inputString[4], (int)inputString[5]);
+          y = mergeInts((int)inputString[7], (int)inputString[8]);
+          omega = mergeInts((int)inputString[10], (int)inputString[11]);
           if (inputString[3]) {
             x = 0 - x;
           }
@@ -197,6 +198,22 @@ void loop() {
           cubic3(omega, v_d3, 0, TIMESTEP);
           starttime = millis();
           timing = true;
+//          Serial.print("target angle = ");
+//          Serial.println(omega, DEC);
+          break;
+        case 2:
+          q1 = mergeInts((int)inputString[4], (int)inputString[5]);
+//          Serial.print("set x to ");
+//          Serial.print(q1, DEC);
+          q2 = mergeInts((int)inputString[7], (int)inputString[8]);
+//          Serial.print(", set y to ");
+//          Serial.print(q2, DEC);
+          q3 = mergeInts((int)inputString[10], (int)inputString[11]);
+//          Serial.print(", set angle to ");
+//          Serial.println(q3, DEC);
+          break;
+        default:
+          break;
       }
     } else {
       Serial.println("resend");
@@ -221,8 +238,8 @@ void loop() {
     //    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
     //    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
     u1 = v_d1 - d * v_d3 * PI / 180.0f;
-    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3) - d * v_d3 * PI / 180.0f;
-    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3) - d * v_d3 * PI / 180.0f;
+    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3) - d * v_d3 * PI / 18000.0f;
+    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3) - d * v_d3 * PI / 18000.0f;
     if (u1 > 0) {
       Omni.wheelBackSetSpeedMMPS((int)u1, DIR_ADVANCE);
     } else if (u1 < 0) {
