@@ -41,8 +41,8 @@ back
 
 SEND
 3
-dfa
-33 34 35 35 36 36 37 73 64 64 0D 0A
+stop
+FF FF 00 00 00 00 00 00 00 00 00 00 FE 0A
 0
 5
 
@@ -50,20 +50,27 @@ SEND
 4
 forward
 FF FF 01 00 00 00 00 00 64 00 00 1E 81 0A
-1
+0
 .5
 
 SEND
 5
+set pos 0
+FF FF 02 00 00 00 00 00 00 00 00 00 00 0A
+0
+1
+
+SEND
+6
 backwards
 FF FF 02 00 00 00 00 00 64 00 00 1E 82 0A
 1
 .5
 
 SEND
-6
-set pos 0
-FF FF 02 00 00 00 00 00 00 00 00 00 00 0A
+7
+set pos 10
+FF FF 02 00 00 00 00 00 64 00 00 1E 82 0A
 0
-1
+5
 

@@ -36,7 +36,7 @@
 #include <Omni3WD.h>
 
 #include <SONAR.h>
-#define TIMESTEP 1000
+#define TIMESTEP 3000
 /******************************************/
 // SONAR
 
@@ -78,14 +78,26 @@ float *c21 = &c2_1, *c22 = &c2_2, *c23 = &c2_3, *c31 = &c3_1, *c32 = &c3_2, *c33
 float q1 = 0.0f;//x
 float q2 = 0.0f;//y
 float q3 = 0.0f;//theta
+float r_1 = 0.0f;
+float r_2 = 0.0f;
+float r_3 = 0.0f;
+float r1 = 0.0f, r2 = 0.0f, r3 = 0.0f;
 float target_1 = 0.0f, target_2 = 0.0f, target_3 = 0.0f;
 float v_d1 = 0.0f;//v_x
 float v_d2 = 0.0f;//v_y
 float v_d3 = 0.0f;//omega
+float u_d1 = 0.0f, u_d2 = 0.0f, u_d3 = 0.0f;
+float *vd1 = &u_d1, *vd2 = &u_d2, *vd3 = &u_d3;
 float u1 = 0.0f, u2 = 0.0f, u3 = 0.0f;
+float *u_1 = &u1, *u_2 = &u2, *u_3 = &u3;
 float q[10];
 float d = 25 + 150 * cos(PI / 6);
 float x, y, omega;
+float Kp = 0.50f, Ki = 0.0f, Kd = 0.0f;
+float s1 = 0.0f, s2 = 0.0f, s3 = 0.0f;
+float *s_1 = &s1, *s_2 = &s2, *s_3 = &s3;
+float p1 = 0.0f, p2 = 0.0f, p3 = 0.0f;
+float *p_1 = &p1, *p_2 = &p2, *p_3 = &p3;
 /*******************************************/
 // cubic trajectory generation
 
@@ -113,6 +125,17 @@ void cubic2(float tar_q, float in_v, float tar_v, float tkkk) {
 void cubic3(float tar_q, float in_v, float tar_v, float tkkk) {
   cubic(q3, tar_q, in_v, tar_v, tkkk, tk, c03, c13, c23, c33);
   target_3 = tar_q;
+}
+
+// General PID
+void GenPID(float pos, float q, float *s, float *p, float *u, float Kp,
+            float Ki, float Kd, float v_d)
+{
+  float e = pos - q;
+  *s = *s + e;
+  //  *u = (Kp * e) + (Ki * *s) + (Kd * (v_d - (e - *p)));
+  *u = (Kp * e) + (Ki * *s) - (Kd * (e - *p));
+  *p = e;
 }
 
 /*******************************************/
@@ -150,7 +173,7 @@ bool checkSum() {
 // merge ints from msb and lsb from incoming data
 int mergeInts(int MSB, int LSB) {
   long a = (256 * (int)(unsigned char)MSB) + (unsigned char)LSB;
-//  Serial.println(a);
+  //  Serial.println(a);
   return a;
 }
 
@@ -173,12 +196,15 @@ void setup() {
 void loop() {
   if (stringComplete) {
     // perform checksum
-    bool checksum = checkSum();
-    if (checksum) {
-//      Serial.println("received");
+    if (checkSum()) {
+      //            Serial.println("received");
       switch (inputString[2]) {
         case 0:
           Omni.setMotorAllStop();
+          v_d1 = 0.0f;
+          v_d2 = 0.0f;
+          v_d3 = 0.0f;
+          timing = false;
           break;
         case 1:
           x = mergeInts((int)inputString[4], (int)inputString[5]);
@@ -193,24 +219,25 @@ void loop() {
           if (inputString[9]) {
             omega = 0 - omega;
           }
+          Serial.println("going");
           cubic1(x, v_d1, 0, TIMESTEP);
           cubic2(y, v_d2, 0, TIMESTEP);
           cubic3(omega, v_d3, 0, TIMESTEP);
           starttime = millis();
           timing = true;
-//          Serial.print("target angle = ");
-//          Serial.println(omega, DEC);
+          //                    Serial.print("target angle = ");
+          //                    Serial.println(omega, DEC);
           break;
         case 2:
           q1 = mergeInts((int)inputString[4], (int)inputString[5]);
-//          Serial.print("set x to ");
-//          Serial.print(q1, DEC);
+          //                    Serial.print("set x to ");
+          //                    Serial.print(q1, DEC);
           q2 = mergeInts((int)inputString[7], (int)inputString[8]);
-//          Serial.print(", set y to ");
-//          Serial.print(q2, DEC);
+          //                    Serial.print(", set y to ");
+          //                    Serial.print(q2, DEC);
           q3 = mergeInts((int)inputString[10], (int)inputString[11]);
-//          Serial.print(", set angle to ");
-//          Serial.println(q3, DEC);
+          //                    Serial.print(", set angle to ");
+          //                    Serial.println(q3, DEC);
           break;
         default:
           break;
@@ -223,23 +250,34 @@ void loop() {
     inputString = "";
     stringComplete = false;
   }
-  if (millis() - starttime >= TIMESTEP && timing) {
+  if ((abs(target_1 - q1) < 30 && abs(target_2 - q2) < 30 && abs(target_3 - q3) < 30) || millis() - starttime >= TIMESTEP && timing) {
     Omni.setMotorAllStop();
     v_d1 = 0.0f;
     v_d2 = 0.0f;
     v_d3 = 0.0f;
+    target_1 = q1, target_2 = q2, target_3 = q3;
     timing = false;
   } else if (timing) {
     float tau = (millis() - starttime) / (float)TIMESTEP;
+    //            r_1 = c0_1 + c1_1 * tau + c2_1 * tau * tau + c3_1 * tau * tau * tau;
+    //            r_2 = c0_2 + c1_2 * tau + c2_2 * tau * tau + c3_2 * tau * tau * tau;
+    //            r_3 = c0_3 + c1_3 * tau + c2_3 * tau * tau + c3_3 * tau * tau * tau;
+    //    r_3 = 0.0f;
+
     v_d1 = c1_1 + 2.0f * c2_1 * tau + 3.0f * c3_1 * tau * tau;
     v_d2 = c1_2 + 2.0f * c2_2 * tau + 3.0f * c3_2 * tau * tau;
     v_d3 = c1_3 + 2.0f * c2_3 * tau + 3.0f * c3_3 * tau * tau;
-    //    u1 = v_d1;
-    //    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
-    //    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
-    u1 = v_d1 - d * v_d3 * PI / 180.0f;
-    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3) - d * v_d3 * PI / 18000.0f;
-    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3) - d * v_d3 * PI / 18000.0f;
+    //        v_d3 = 0.0f;
+    //    GenPID(target_1 , q1, s_1, p_1, vd1, Kp, Ki, Kd, v_d1);
+    //    GenPID(target_2, q2, s_2, p_2, vd2, Kp, Ki, Kd, v_d2);
+    //    GenPID(target_3, q3, s_3, p_3, vd3, Kp, Ki, Kd, v_d3);
+    u1 = v_d1;
+    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
+    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
+
+    //    u1 = u_d1 - d * u_d3 * PI / 180.0f;
+    //    u2 = -0.5f * u_d1 - u_d2 * sin(PI / 3) - d * u_d3 * PI / 18000.0f;
+    //    u3 = -0.5f * u_d1 + u_d2 * sin(PI / 3) - d * u_d3 * PI / 18000.0f;
     if (u1 > 0) {
       Omni.wheelBackSetSpeedMMPS((int)u1, DIR_ADVANCE);
     } else if (u1 < 0) {
@@ -266,12 +304,13 @@ void loop() {
     //    Serial.print("u1 = ");
     //    Serial.print(u1, DEC);
     //    Serial.print(", u2 = ");
-    //    Serial.print(u2, DEC);
     //    Serial.print(", u3 = ");
+    //    Serial.print(u2, DEC);
     //    Serial.println(u3, DEC);
-    Omni.PIDRegulate();
+
     //    delay(10);
   }
+      Omni.PIDRegulate();
 }
 // char prevChar = '0';
 void serialEvent() {
