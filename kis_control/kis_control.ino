@@ -277,7 +277,7 @@ void loop() {
     u1 = target_1;
     u2 = target_2;
     u3 = target_3;
-    //    u1 = u_d1 - d * u_d3 * PI / 180.0f;
+    //    u1 = u_d1 - d * u_d3 * PI / 18000.0f;
     //    u2 = -0.5f * u_d1 - u_d2 * sin(PI / 3) - d * u_d3 * PI / 18000.0f;
     //    u3 = -0.5f * u_d1 + u_d2 * sin(PI / 3) - d * u_d3 * PI / 18000.0f;
     if (u1 > 0) {
