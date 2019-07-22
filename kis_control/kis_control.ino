@@ -255,26 +255,28 @@ void loop() {
     v_d1 = 0.0f;
     v_d2 = 0.0f;
     v_d3 = 0.0f;
-    target_1 = q1, target_2 = q2, target_3 = q3;
+    //    target_1 = q1, target_2 = q2, target_3 = q3;
     timing = false;
   } else if (timing) {
-    float tau = (millis() - starttime) / (float)TIMESTEP;
+    //    float tau = (millis() - starttime) / (float)TIMESTEP;
     //            r_1 = c0_1 + c1_1 * tau + c2_1 * tau * tau + c3_1 * tau * tau * tau;
     //            r_2 = c0_2 + c1_2 * tau + c2_2 * tau * tau + c3_2 * tau * tau * tau;
     //            r_3 = c0_3 + c1_3 * tau + c2_3 * tau * tau + c3_3 * tau * tau * tau;
     //    r_3 = 0.0f;
-
-    v_d1 = c1_1 + 2.0f * c2_1 * tau + 3.0f * c3_1 * tau * tau;
-    v_d2 = c1_2 + 2.0f * c2_2 * tau + 3.0f * c3_2 * tau * tau;
-    v_d3 = c1_3 + 2.0f * c2_3 * tau + 3.0f * c3_3 * tau * tau;
+    //
+    //    v_d1 = c1_1 + 2.0f * c2_1 * tau + 3.0f * c3_1 * tau * tau;
+    //    v_d2 = c1_2 + 2.0f * c2_2 * tau + 3.0f * c3_2 * tau * tau;
+    //    v_d3 = c1_3 + 2.0f * c2_3 * tau + 3.0f * c3_3 * tau * tau;
     //        v_d3 = 0.0f;
     //    GenPID(target_1 , q1, s_1, p_1, vd1, Kp, Ki, Kd, v_d1);
     //    GenPID(target_2, q2, s_2, p_2, vd2, Kp, Ki, Kd, v_d2);
     //    GenPID(target_3, q3, s_3, p_3, vd3, Kp, Ki, Kd, v_d3);
-    u1 = v_d1;
-    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
-    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
-
+    //    u1 = v_d1;
+    //    u2 = -0.5f * v_d1 - v_d2 * sin(PI / 3);
+    //    u3 = -0.5f * v_d1 + v_d2 * sin(PI / 3);
+    u1 = target_1;
+    u2 = target_2;
+    u3 = target_3;
     //    u1 = u_d1 - d * u_d3 * PI / 180.0f;
     //    u2 = -0.5f * u_d1 - u_d2 * sin(PI / 3) - d * u_d3 * PI / 18000.0f;
     //    u3 = -0.5f * u_d1 + u_d2 * sin(PI / 3) - d * u_d3 * PI / 18000.0f;
@@ -310,7 +312,7 @@ void loop() {
 
     //    delay(10);
   }
-      Omni.PIDRegulate();
+    Omni.PIDRegulate();
 }
 // char prevChar = '0';
 void serialEvent() {
