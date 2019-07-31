@@ -197,7 +197,7 @@ void loop() {
   if (stringComplete) {
     // perform checksum
     if (checkSum()) {
-      //            Serial.println("received");
+      //            Serial.println("r");
       switch (inputString[2]) {
         case 0:
           Omni.setMotorAllStop();
@@ -219,7 +219,7 @@ void loop() {
           if (inputString[9]) {
             omega = 0 - omega;
           }
-          Serial.println("going");
+//          Serial.println("going");
           cubic1(x, v_d1, 0, TIMESTEP);
           cubic2(y, v_d2, 0, TIMESTEP);
           cubic3(omega, v_d3, 0, TIMESTEP);
@@ -319,12 +319,17 @@ void serialEvent() {
   while (Serial.available()) {
     // get the new byte:
     char inChar = (char)Serial.read();
+    if(inChar != char(255) && inputString.length() < 2){
+      inputString = "";
+    }
+    else{
     // add it to the inputString:
     inputString += inChar;
     // if the incoming character is a newline, set a flag
     // so the main loop can do something about it:
     if (inputString.length() == 14 && inChar == '\n') {
       stringComplete = true;
+    }
     }
     //    prevChar = inChar;
   }
