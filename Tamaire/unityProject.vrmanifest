@@ -1,0 +1,16 @@
+{
+  "source": "Unity",
+  "applications": [
+    {
+      "app_key": "application.generated.unity.tamaire.exe",
+      "launch_type": "url",
+      "url": "steam://launch/",
+      "action_manifest_path": "C:\\Users\\HCILAB-i7\\Documents\\Chaiyo\\Github\\kis-personal-space-bot\\Tamaire\\actions.json",
+      "strings": {
+        "en_us": {
+          "name": "Tamaire [Testing]"
+        }
+      }
+    }
+  ]
+}
