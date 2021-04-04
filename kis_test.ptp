@@ -39,3 +39,38 @@ back
 0
 5
 
+SEND
+3
+stop
+FF FF 00 00 00 00 00 00 00 00 00 00 FE 0A
+0
+5
+
+SEND
+4
+forward
+FF FF 01 00 00 00 00 00 64 00 00 1E 81 0A
+0
+.5
+
+SEND
+5
+set pos 0
+FF FF 02 00 00 00 00 00 00 00 00 00 00 0A
+0
+1
+
+SEND
+6
+backwards
+FF FF 02 00 00 00 00 00 64 00 00 1E 82 0A
+1
+.5
+
+SEND
+7
+set pos 10
+FF FF 02 00 00 00 00 00 64 00 00 1E 82 0A
+0
+5
+
